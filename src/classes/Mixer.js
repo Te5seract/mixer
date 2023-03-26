@@ -9,11 +9,16 @@ export default class Mixer {
 
 		// options
 		this.interactive = options.interactive;
-		this.gap = options.gap ? options.gap : 15;
 		this.context = options.containerContext !== undefined ? options.containerContext : true;
 		this.boundaries = options.containerBoundaries !== undefined ? options.containerBoundaries : false;
 		this.elastic = options.elastic !== undefined ? options.elastic : true;
 		this.effects = options.effects;
+		this.direction = options.direction ? options.direction : "horizontal";
+
+		// styling
+		this.gap = options.gap ? options.gap : 15;
+		this.horizontalAlignment = options.horizontalAlignment ? options.horizontalAlignment : "flex-start";
+		this.padding = options.padding ? options.padding : 15;
 
 		// dynamic
 		this.items = {};
@@ -38,7 +43,11 @@ export default class Mixer {
     }
 
 	_discover () {
-		const children = [ ...this.elem.children ];
+		const children = [ ...this.elem.children ],
+			scout = document.createElement("div");
+
+		scout.setAttribute("data-mixr-role", "scout");
+		document.body.insertBefore(scout, document.body.firstElementChild);
 
 		this.elem.classList.add("_mixer");
 
@@ -51,12 +60,30 @@ export default class Mixer {
 			this.items[i] = {
                 x : 0,
                 y : 0,
+				movedAmountX : 0,
+				movedAmountY : 0,
                 yOrigin :  child.getBoundingClientRect().top - this.elem.getBoundingClientRect().top,
-                xOrigin : child.getBoundingClientRect().left,
-                DOMMargin : children[0].getBoundingClientRect().left,
-				node : child
+				xOrigin : child.getBoundingClientRect().left - ( child.clientWidth + scout.offsetLeft ),
+				scoutTop : scout.offsetTop,
+				scoutLeft : scout.offsetLeft,
+				marginLeft : this.elem.getBoundingClientRect().left - scout.offsetLeft,
+				marginTop : this.elem.getBoundingClientRect().top,
+				containerWidth : this.elem.clientWidth,
+				containerHeight : this.elem.clientHeight,
+				node : child,
+				height : child.clientHeight,
+				width : child.clientWidth,
+				top : child.getBoundingClientRect().top,
+				left : child.getBoundingClientRect().left,
+				right : child.getBoundingClientRect().left + child.clientWidth,
+				center : ( child.getBoundingClientRect().left + ( child.getBoundingClientRect().left + child.clientWidth )) * .5,
+				ref : i
 			};
 		});
+
+		console.log(this.items)
+
+		scout.remove();
 	}
 
 	_styles () {
@@ -66,12 +93,21 @@ export default class Mixer {
 		style.addRule("._mixer", {
 			"display" : "flex",
 			"gap" : `${ this.gap }px`,
-            "align-items" : "center"
+            "align-items" : "center",
+			"user-select" : "none",
+			"position" : "relative",
+			"justify-content" : this.horizontalAlignment,
+			"box-sizing" : "border-box",
+			"padding" : `${ this.padding }px`
 		});
 
 		// child styles
-		style.addRule(`._mixer__item *${ this.interactive.length ? `:not(${ this.interactive.join(",") })` : ""}`, {
+		style.addRule(`._mixer__item *${ this.interactive && this.interactive.length ? `:not(${ this.interactive.join(",") })` : ""}`, {
 			"pointer-events" : "none"
+		});
+
+		style.addRule("._mixer__item", {
+			"cursor" : "grab"
 		});
 
 		style.addRule(this.selector, {
@@ -86,5 +122,15 @@ export default class Mixer {
 
 	move (callback) {
 		this.events.move(callback);
+	}
+
+	get () {
+		const itemList = Object.values(this.events.items);
+
+		const sortedItems = itemList.sort((first, last) => {
+			return first.xOrigin - last.xOrigin;
+		});
+
+		return sortedItems;
 	}
 }
