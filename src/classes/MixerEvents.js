@@ -96,6 +96,7 @@ export default class MixerEvents {
 		this.grabbed.style.cssText += `
 			transform: translate(${ this.grabbedRef.x }px, ${ this.grabbedRef.y }px);
 			pointer-events: none;
+			z-index: 2;
 			transition: 0;
 		`;
 
@@ -132,6 +133,7 @@ export default class MixerEvents {
                 position: relative;
                 transform: translate(0, 0);
 				cursor: grab;
+				z-index: 1;
                 transition: .3s;
             `;
 
@@ -164,6 +166,7 @@ export default class MixerEvents {
 
 		items.forEach(item => {
 			item.node.style.cssText = `
+				z-index: 1;
 				transform: translate(0, 0);
 				transition: .2s;
 			`;

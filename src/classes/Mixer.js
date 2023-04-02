@@ -27,6 +27,11 @@ export default class Mixer {
         this._setup();
     }
 
+	/**
+	* sets up the library and initialises helper libraries
+	*
+	* @return {void}
+	*/
     _setup () {
 		// style setup
 		this._styles();
@@ -42,6 +47,11 @@ export default class Mixer {
 		events.start();
     }
 
+	/**
+	* discovers the library initialisation node and lays
+	* out the foundation properties for the library to work with
+	* @return {void}
+	*/
 	_discover () {
 		const children = [ ...this.elem.children ],
 			scout = document.createElement("div");
@@ -52,7 +62,7 @@ export default class Mixer {
 		this.elem.classList.add("_mixer");
 
 		children.forEach((child, i) => {
-            child.style.cssText = `transform: translate(0, 0);`;
+            child.style.cssText = `transform: translate(0, 0); z-index: 1;`;
 			child.classList.add("_mixer__item");
 			child.setAttribute("data-mixer-movable", "true");
 			child.setAttribute("data-node-ref", i);
@@ -80,8 +90,6 @@ export default class Mixer {
 				ref : i
 			};
 		});
-
-		console.log(this.items)
 
 		scout.remove();
 	}
