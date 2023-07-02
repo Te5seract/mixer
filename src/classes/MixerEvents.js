@@ -1,7 +1,7 @@
 import MixerStyles from "./MixerStyles.js";
 
 export default class MixerEvents {
-	constructor (mixer) {
+	constructor (mixer, options) {
 		this.mixer = mixer;
 		this.selector = mixer.selector;
 		this.elem = mixer.elem;
@@ -22,6 +22,7 @@ export default class MixerEvents {
 			: 
 			100;
 		this.items = mixer.items;
+		this.track = mixer.track;
 
 		// dynamic
 		this.pixelsMoved = 0;
@@ -100,6 +101,8 @@ export default class MixerEvents {
 			transition: 0;
 		`;
 
+		//this._autoScroller();
+
 		if (this.moveCallback) {
 			this.moveCallback({
 				x : this.xPos,
@@ -109,6 +112,21 @@ export default class MixerEvents {
 				target : target,
 				...directions
 			});
+		}
+	}
+
+	_autoScroller () {
+		const scrollPosX = this.elem.scrollLeft,
+			scrollPosY = this.elem.scrollTop;
+
+		console.log(this.xPos, this.grabbedRef.containerLeft);
+
+		if (Math.round( this.xPos ) >= this.grabbedRef.containerRight) {
+			//this.elem.scrollTo(scrollPosX + 1, 0);
+		}
+
+		if (Math.round( this.xPos ) <= this.grabbedRef.containerLeft) {
+			//this.elem.scrollTo(scrollPosX - 1, 0);
 		}
 	}
 
@@ -126,7 +144,6 @@ export default class MixerEvents {
 
 		this.grabbed.removeEventListener("pointerdown", this._grab, false);
 		this.contextNode().removeEventListener("pointermove", this._move, false);
-		//this.elem.removeEventListener("pointerover", this._over, false)
 
         if (this.elastic) {
             this.grabbed.style.cssText = `
@@ -136,6 +153,9 @@ export default class MixerEvents {
 				z-index: 1;
                 transition: .3s;
             `;
+
+			this.grabbedRef.xOrigin = this.grabbed.getBoundingClientRect().left - ( this.grabbed.clientWidth + this.grabbedRef.scoutLeft );
+			this.grabbedRef.yOrigin = this.grabbed.getBoundingClientRect().top - this.grabbedRef.scoutTop;
 
             this.grabbedRef.x = 0;
             this.grabbedRef.y = 0;
@@ -177,8 +197,9 @@ export default class MixerEvents {
 		if (target.dataset.mixerSnap) {
 			const ref = target.dataset.nodeRef,
 				sibling = this.items[ref],
-				{ left, center, right } = sibling;
+				{ left, center, right, centerTop } = sibling;
 
+			if (this.direction === "horizontal") {
 				if (x > center) {
 					target.style.cssText += `
 						transform: translate(-5px, 0);
@@ -193,8 +214,28 @@ export default class MixerEvents {
 						transition: .2s;
 					`;
 
-					if (place) this.elem.insertBefore(this.grabbed, target);
+					if (place) this.track.insertBefore(this.grabbed, target);
 				}
+
+				return;
+			}
+
+			if (y > centerTop) {
+				target.style.cssText += `
+					transform: translate(0, -5px);
+					transition: .2s;
+				`;
+
+				if (place) target.after(this.grabbed);
+			}
+			else if (y < centerTop) {
+				target.style.cssText += `
+					transform: translate(0, 5px);
+					transition: .2s;
+				`;
+
+				if (place) this.track.insertBefore(this.grabbed, target);
+			}
 		} else {
 			this._resetItemPositions();
 		}
@@ -318,6 +359,9 @@ export default class MixerEvents {
 			item.left = item.node.getBoundingClientRect().left;
 			item.right = item.node.getBoundingClientRect().left + item.node.clientWidth;
 			item.center = ( item.node.getBoundingClientRect().left + ( item.node.getBoundingClientRect().left + item.node.clientWidth )) * .5;
+
+			item.bottom = item.node.getBoundingClientRect().top + item.node.clientHeight;
+			item.centerTop = ( item.node.getBoundingClientRect().top + ( item.node.getBoundingClientRect().top + item.node.clientHeight )) * .5;
 		}
 	}
 
