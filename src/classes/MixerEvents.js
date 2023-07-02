@@ -101,8 +101,6 @@ export default class MixerEvents {
 			transition: 0;
 		`;
 
-		//this._autoScroller();
-
 		if (this.moveCallback) {
 			this.moveCallback({
 				x : this.xPos,
@@ -115,6 +113,12 @@ export default class MixerEvents {
 		}
 	}
 
+	/**
+	* enable scrolling when an element gets to the
+	* edge of the bounding box
+	*
+	* - experimental
+	*/
 	_autoScroller () {
 		const scrollPosX = this.elem.scrollLeft,
 			scrollPosY = this.elem.scrollTop;

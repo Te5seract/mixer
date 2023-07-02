@@ -61,6 +61,7 @@ export default class Mixer {
 
 		if (!existingTrack) {
 			const track = document.createElement("div");
+
 			track.classList.add("_mixer-track");
 			track.dataset.mixerRole = "track";
 
@@ -165,6 +166,8 @@ export default class Mixer {
 		});
 	}
 
+	// -- public methods
+
 	ready (callback) {
 		this.callback = callback;
 		this.callback ? this.callback() : null;
@@ -178,21 +181,6 @@ export default class Mixer {
 		const itemList = Object.values(this.events.items);
 
 		return [ ...this.track.children ];
-
-		//if (this.direction === "horizontal") {
-			//console.log(1);
-			//const sortedItems = itemList.sort((first, last) => {
-				//return first.xOrigin - last.xOrigin;
-			//});
-
-			//return sortedItems;
-		//}
-
-		//const sortedItems = itemList.sort((first, last) => {
-			//return first.yOrigin - last.yOrigin;
-		//});
-
-		//return sortedItems;
 	}
 
 	refresh () {
