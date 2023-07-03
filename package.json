@@ -9,7 +9,8 @@
   },
   "scripts": {
 	"dev" : "npx webpack --watch --config webpack.config.js",
-	"start" : "npx webpack serve"
+	"start" : "npx webpack serve",
+	"init" : "npx webpack --config webpack.config.js && node ./scripts/dev.js && npm run start"
   },
   "repository": {
     "type": "git",
