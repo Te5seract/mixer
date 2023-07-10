@@ -1,1 +1,1 @@
-import Mixer from "./src/classes/Mixer.js";
+import Mixer from "./src/Mixer.js";

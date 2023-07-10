@@ -1,56 +1,102 @@
+/**
+* @namespace Styles
+*
+* author: isaacastley@live.com
+*/
 export default class MixerStyles {
-	constructor (mixer) {
-		const sheet = document.createElement("style");
+    constructor ({ options, selector, container, track, items }) {
+        // static
+        this.options = options;
+        this.selector = selector;
+        this.container = container;
+        this.track = track;
+        this.items = items;
 
-		// extending core mixer class
-		this.selector = mixer.selector;
-		this.elem = mixer.elem;
+        // kickoff
+        this.#init();
+    }
 
-		// static
-		this.sheet = sheet;
-		this.rules = {};
+    /**
+    * initializes the mixer styles class
+    *
+    * @return {void}
+    */
+    #init () {
+        const style = document.createElement("style"),
+            styleExisting = document.querySelector(`[data-mixer-role="stylesheet"]`);
 
-		document.head.append(sheet);
-	}
+        style.dataset.mixerRole = "stylesheet";
 
-	addRule (selector, rules) {
-		if (this.rules[selector]) {
-			const existing = Object.keys(this.rules[selector]);
+        this.style = style;
 
-			existing.forEach(rule => {
-				if (this.rules[selector][rule]) {
-					this.rules[selector][rule] = rules[rule];
-				}
-			});
+        this.#rules();
 
-			this._write();
+        if (!styleExisting) {
+            document.head.append(style);
+        }
+    }
 
-			return;
-		}
+    /**
+    * set basic styling rules for the
+    *
+    * @return {void}
+    */
+    #rules () {
+        let { gap, direction, pointerEvents, overflow } = this.options;
 
-		this.rules[selector] = rules;
+        const overflowSetting = direction && ["horizontal", "vertical"].indexOf(direction) !== -1 ? { "overflow-x" : "auto" } : { "overflow-y" : "auto" };
 
-		this._write();
+        overflow = overflow ? overflowSetting : {};
 
-		//this.rules[selector] += rules;
-	}
 
-	_write () {
-		let rules = "";
+        this.#setRule("._mixer", {
+            "position" : "relative",
+            "background-color" : "#ccc",
+            ...overflow 
+        });
 
-		Object.keys(this.rules).forEach(selector => {
-			let selectorRules = "";
-			rules += selector;
+        this.#setRule("._mixer__track", {
+            "position" : "relative",
+            "display" : "flex",
+            "flex-direction" : `${ direction === "horizontal" ?  "row" : "column" }`,
+            "gap" : `${ gap ? gap : 15 }px`,
+            "user-select" : "none"
+        });
 
-			Object.keys(this.rules[selector]).forEach(rule => {
-				selectorRules += `${ rule }: ${ this.rules[selector][rule] };`;
-			});
+        this.#setRule("._mixer__item", {
+            "position" : "relative",
+            "width" : "150px",
+            "height" : "150px",
+            "flex-shrink" : "0"
+        });
 
-			selectorRules = `{${ selectorRules }}`;
+        this.#setRule(`._mixer__item *${ pointerEvents ? pointerEvents.map(not => `:not(${ not })`).join("") : "" }`, {
+            "pointer-events" : "none"
+        });
+    }
 
-			rules += selectorRules;
-		});
+    /**
+    * provides an interface for adding CSS
+    * rules to the mixer library
+    *
+    * @param {string} selector
+    * the css selector to apply rules to
+    *
+    * @param {object} properties
+    * what css properties to apply to the
+    * mixer items
+    *
+    * @return {void}
+    */
+    #setRule (selector, properties) {
+        const propKeys = Object.keys(properties);
 
-		this.sheet.innerHTML = rules;
-	}
+        let css = "";
+
+        propKeys.forEach(key => {
+            css += `${key}:${properties[key]};`;
+        });
+
+        this.style.innerHTML += `${selector}{${ css }}`;
+    }
 }

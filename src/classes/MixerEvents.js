@@ -1,397 +1,128 @@
-import MixerStyles from "./MixerStyles.js";
+import MixerMechanics from "./extensions/MixerMechanics.js";
 
-export default class MixerEvents {
-	constructor (mixer, options) {
-		this.mixer = mixer;
-		this.selector = mixer.selector;
-		this.elem = mixer.elem;
+/**
+* @namespace Events
+*
+* author: isaacastley@live.com
+*/
+export default class MixerEvents extends MixerMechanics {
+    constructor ({ options, selector, container, track, items, meta }) {
+        super();
 
-		// options
-		this.context = mixer.context;
-		this.boundaries = mixer.boundaries;
-		this.elastic = mixer.elastic;
-		this.direction = mixer.direction;
-		this.gap = mixer.gap;
-		this.contextNode = () => {
-			if (this.mixer.context) return this.elem;
+        // static
+        this.options = options;
+        this.selector = selector;
+        this.canvas = container;
+        this.track = track;
+        this.items = items;
+        this.meta = meta;
 
-			return document;
-		};
-		this.pixelsPerSecond = mixer.effects && mixer.effects.pixelsPerSecond ? 
-			mixer.effects.pixelsPerSecond 
-			: 
-			100;
-		this.items = mixer.items;
-		this.track = mixer.track;
+        // dynamic
+        this.moved = false;
 
-		// dynamic
-		this.pixelsMoved = 0;
-		this.currentSpeed = this._getSpeed;
-		this.xDir = 0;
-		this.yDir = 0;
-		this.eventCache = {
-			xDir : 0,
-			yDir : 0,
-		};
-	}
-
-	/**
-	 * this will begin the library's drag and
-	 * drop mechanic. This will store the currently
-	 * selected drag item within the instance to be 
-	 * used in the _move() and _letGo methods.
-	 *
-	 * return {void}
-	 */
-    _grab = (e) => {
-		this._checkDimensions();
-
-		const { target, x, y } = e;
-
-		// prevent no pointer event items from moving
-		if (!target.dataset.mixerMovable) return;
-
-		//this.elem.addEventListener("pointerover", this._over);
-		this.contextNode().addEventListener("pointermove", this._move);
-
-		// store info on the currently moved item
-		this.grabbed = target;
-
-		this.grabbed.style.cssText += `
-			transition: 0s;
-		`;
-
-		this._snapPoints(true);
-
-		this.grabbedRef = this.items[target.dataset.nodeRef];
-
-		this.grabbedX = x - this.grabbedRef.xOrigin;
-		this.grabbedY = y - this.grabbedRef.yOrigin;
-
-		this.originX = this.grabbedRef.xOrigin;
-		this.originY = this.grabbedRef.yOrigin;
+        // kickoff
+        this.#init();
     }
 
-	/**
-	 * this will enable the drag mechanics for the mixer item.
-	 *
-	 * @return {void}
-	 */
-	_move = (e) => {
-		// the width can change dynamically, keep it updated
-		this.grabbedRef.containerWidth = this.elem.clientWidth;
-		
-		const { target, x, y } = e,
-			directions = this._getMovementDirection(x, y);
+    #init () {
+        this.items.forEach(item => {
+            item.addEventListener("pointerdown", this.#grab);
+        });
+    }
 
-		if (this.elastic) this._landingPlace(target, x, y);
-			
-        this.xPos = x - this.grabbedX,
-        this.yPos = y - this.grabbedY;
+    /**
+    * when the mixr item has been grabbed
+    *
+    * @return {void}
+    */
+    #grab = (e) => {
+        const { target, x, y } = e;
 
-		this.pixelsMoved = this.pixelsMoved + 1;
+        if (!target.dataset.mixerId) return;
 
-        this._constrainPosition(this.boundaries);
-		this._translateItem(directions);
+        // set props
+        this.id = target.dataset.mixerId;
+        this.grabbed = this.meta[this.id];
+        this.grabbedX = x;
+        this.grabbedY = y;
 
-		this.grabbed.style.cssText += `
-			transform: translate(${ this.grabbedRef.x }px, ${ this.grabbedRef.y }px);
-			pointer-events: none;
-			z-index: 2;
-			transition: 0;
-		`;
+        document.addEventListener("pointermove", this.#move);
+        document.addEventListener("pointerup", this.#release);
+    }
 
-		if (this.moveCallback) {
-			this.moveCallback({
-				x : this.xPos,
-				y : this.yPos,
-				moved : this.pixelsMoved,
-				//speed : this.currentSpeed(),
-				target : target,
-				...directions
-			});
-		}
-	}
+    /**
+    * moves the mixer item
+    *
+    * @return {void}
+    */
+    #move = (e) => {
+        let { x, y } = this.#translate(e);
 
-	/**
-	* enable scrolling when an element gets to the
-	* edge of the bounding box
-	*
-	* - experimental
-	*/
-	_autoScroller () {
-		const scrollPosX = this.elem.scrollLeft,
-			scrollPosY = this.elem.scrollTop;
+        if (x > 0 || y > 0) this.moved = true;
 
-		console.log(this.xPos, this.grabbedRef.containerLeft);
+        this.grabbed.item.node.style.cssText = `
+            transform: translate(${ x }px, ${ y }px);
+        `;
+    }
 
-		if (Math.round( this.xPos ) >= this.grabbedRef.containerRight) {
-			//this.elem.scrollTo(scrollPosX + 1, 0);
-		}
+    /**
+    * lets go of the mixer item and stops
+    * the mixer move event
+    *
+    * @return {void}
+    */
+    #release = (e) => {
+        const { target, x, y } = e;
 
-		if (Math.round( this.xPos ) <= this.grabbedRef.containerLeft) {
-			//this.elem.scrollTo(scrollPosX - 1, 0);
-		}
-	}
+        document.removeEventListener("pointermove", this.#move, false);
 
-	/**
-	 * this even listens for when the pointer is lifted,
-	 * when the pointer is lifted, the move and down events
-	 * will be removed.
-	 *
-	 * return {void}
-	 */
-	_letGo = (e) => {
-		if (!this.grabbed) return;
+        if (!this.moved || this.grabbedX === x) return;
 
-		const { target, x, y } = e;
+        this.#translate(e, true);
+        this.moved = false;
+    }
 
-		this.grabbed.removeEventListener("pointerdown", this._grab, false);
-		this.contextNode().removeEventListener("pointermove", this._move, false);
+    /**
+    * translates the position of the mixer item
+    *
+    * @param {object} e
+    * the event object from any pointer
+    * based event to extract x & y coordinates
+    *
+    * @param {bool} set
+    * sets the coordinates for the mixer
+    * item's last move position for when it's
+    * interacted with again
+    *
+    * variable guideline: 
+    * ex and ey = event object x & y
+    * bx and by = boundaries x & y
+    *
+    * @return {object}
+    */
+    #translate (e, set) {
+        const { x, y } = this.meta[this.id],
+            { x : ex, y : ey } = e;
 
-        if (this.elastic) {
-            this.grabbed.style.cssText = `
-                position: relative;
-                transform: translate(0, 0);
-				cursor: grab;
-				z-index: 1;
-                transition: .3s;
-            `;
+        // start from a position of 0 
+        this.x = ex - this.grabbedX;
+        this.y = ey - this.grabbedY;
 
-			this.grabbedRef.xOrigin = this.grabbed.getBoundingClientRect().left - ( this.grabbed.clientWidth + this.grabbedRef.scoutLeft );
-			this.grabbedRef.yOrigin = this.grabbed.getBoundingClientRect().top - this.grabbedRef.scoutTop;
+        /**
+        * set up boundaries to prevent the
+        * mixer items from breaching the mixer
+        * canvas
+        */
+        const { x : bx, y : by } = super.boundaries(x + this.x, y + this.y);
 
-            this.grabbedRef.x = 0;
-            this.grabbedRef.y = 0;
-
-			this._landingPlace(target, x, y, true);
-			this._resetPositions();
-        } else {
-			this.grabbed.style.cssText = `
-				transform: translate(${ this.grabbedRef.x }px, ${ this.grabbedRef.y }px);
-			`;
-
-			this.grabbedRef.movedAmountX = this.grabbedRef.x;
-			this.grabbedRef.xOrigin = this.grabbed.getBoundingClientRect().left - ( this.grabbed.clientWidth + this.grabbedRef.scoutLeft );
-
-			this.grabbedRef.movedAmountY = this.grabbedRef.y;
-			this.grabbedRef.yOrigin = this.grabbed.getBoundingClientRect().top - this.grabbedRef.scoutTop;
+        if (set) {
+            this.meta[this.id].x = bx;
+            this.meta[this.id].y = by;
         }
 
-		this._snapPoints(false);
-
-		this.start();
-
-		this.pixelsMoved = 0;
-	}
-
-	_resetPositions () {
-		const items = Object.values(this.items);
-
-		items.forEach(item => {
-			item.node.style.cssText = `
-				z-index: 1;
-				transform: translate(0, 0);
-				transition: .2s;
-			`;
-		});
-	}
-
-	_landingPlace (target, x, y, place) {
-		if (target.dataset.mixerSnap) {
-			const ref = target.dataset.nodeRef,
-				sibling = this.items[ref],
-				{ left, center, right, centerTop } = sibling;
-
-			if (this.direction === "horizontal") {
-				if (x > center) {
-					target.style.cssText += `
-						transform: translate(-5px, 0);
-						transition: .2s;
-					`;
-
-					if (place) target.after(this.grabbed);
-				}
-				else if (x < center) {
-					target.style.cssText += `
-						transform: translate(5px, 0);
-						transition: .2s;
-					`;
-
-					if (place) this.track.insertBefore(this.grabbed, target);
-				}
-
-				return;
-			}
-
-			if (y > centerTop) {
-				target.style.cssText += `
-					transform: translate(0, -5px);
-					transition: .2s;
-				`;
-
-				if (place) target.after(this.grabbed);
-			}
-			else if (y < centerTop) {
-				target.style.cssText += `
-					transform: translate(0, 5px);
-					transition: .2s;
-				`;
-
-				if (place) this.track.insertBefore(this.grabbed, target);
-			}
-		} else {
-			this._resetItemPositions();
-		}
-	}
-
-	_resetItemPositions () {
-		const items = Object.values(this.items);
-
-		items.forEach(item => {
-			if (item.node !== this.grabbed) {
-				item.node.style.cssText += `
-					transform: translate(0, 0);
-					transition: .2s;
-				`;
-			}
-		});
-	}
-
-	_snapPoints (isActive) {
-		const items = Object.values(this.items);
-
-		if (isActive) {
-			items.forEach(item => {
-				item.node !== this.grabbed && item.node.setAttribute("data-mixer-snap", "snap-point");
-			});
-
-			return;
-		}
-
-		items.forEach(item => {
-			item.node !== this.grabbed && item.node.removeAttribute("data-mixer-snap");
-		});
-	}
-
-	_translateItem ({ xDirection, yDirection }) {
-		if (xDirection === "right") {
-			this.grabbedRef.x = this.xPos - ( this.grabbedRef.xOrigin - this.grabbedRef.movedAmountX );
-		}
-		else if (xDirection === "left") {
-			this.grabbedRef.x = this.xPos - ( this.grabbedRef.xOrigin - this.grabbedRef.movedAmountX );
-		}
-
-		if (yDirection === "up") {
-			//this.grabbedRef.y = Math.round(this.yPosA - this.grabbedRef.yOrigin);
-			this.grabbedRef.y = this.yPos - ( this.grabbedRef.yOrigin - this.grabbedRef.movedAmountY );
-		}
-		else if (yDirection === "down") {
-			//this.grabbedRef.y = Math.round(this.yPosA - this.grabbedRef.yOrigin);
-			this.grabbedRef.y = this.yPos - ( this.grabbedRef.yOrigin - this.grabbedRef.movedAmountY );
-		}
-	}
-
-	_getMovementDirection (x, y) {
-		// get x direction
-		if (this.xDir > x) {
-			this.eventCache.xDir = "left";
-		} 
-		else if (this.xDir < x) {
-			this.eventCache.xDir = "right";
-		} else {
-            this.eventCache.xDir = "none";
+        return {
+            x :  bx,
+            y :  by
         }
-
-		// get y direction
-		if (this.yDir > y) {
-			this.eventCache.yDir = "up";
-		}
-		else if (this.yDir < y) {
-			this.eventCache.yDir = "down";
-        } else {
-            this.eventCache.yDir = "none";
-        }
-		
-		this.xDir = x;
-		this.yDir = y;
-
-		return {
-			xDirection : this.eventCache.xDir,
-			yDirection : this.eventCache.yDir,
-		};
-	}
-
-	/**
-	 * this prevents the dragged mixer item from breaking out of
-	 * the mixer container
-	 *
-	 * @param {bool} isConstrained
-	 * this will determine if the mixer items should be constrained
-	 * to its container element or not
-	 *
-	 * return {void}
-	 */
-	_constrainPosition (isConstrained) {
-		if (isConstrained) {
-			const xMax = ( this.grabbedRef.containerWidth + this.grabbedRef.marginLeft ) - ( this.grabbed.clientWidth * 2 ),
-				xMin = this.grabbedRef.marginLeft - this.grabbed.clientWidth,
-				yMax = this.grabbedRef.containerHeight - this.grabbed.clientHeight;
-
-			this.xPos = this.xPos >= xMax ? xMax : this.xPos;
-			this.xPos = this.xPos <= xMin ? xMin : this.xPos;
-
-			this.yPos = this.yPos >= yMax ? yMax : this.yPos;
-			this.yPos = this.yPos <= 0 ? 0 : this.yPos;
-		}
-	}
-
-	_checkDimensions () {
-		for (let i in this.items) {
-			const item = this.items[i];
-
-			item.yOrigin =  item.node.getBoundingClientRect().top - this.elem.getBoundingClientRect().top,
-			item.xOrigin = item.node.getBoundingClientRect().left - ( item.node.clientWidth + item.scoutLeft ),
-
-			item.marginLeft = this.elem.getBoundingClientRect().left - item.scoutLeft;
-			item.marginTop = this.elem.getBoundingClientRect().top;
-
-			item.height = item.node.clientHeight;
-			item.width = item.node.clientWidth;
-
-			item.top = item.node.getBoundingClientRect().top;
-			item.left = item.node.getBoundingClientRect().left;
-			item.right = item.node.getBoundingClientRect().left + item.node.clientWidth;
-			item.center = ( item.node.getBoundingClientRect().left + ( item.node.getBoundingClientRect().left + item.node.clientWidth )) * .5;
-
-			item.bottom = item.node.getBoundingClientRect().top + item.node.clientHeight;
-			item.centerTop = ( item.node.getBoundingClientRect().top + ( item.node.getBoundingClientRect().top + item.node.clientHeight )) * .5;
-		}
-	}
-
-	/////////////////////////////////////
-	// -- public methods
-	
-	/**
-	 * initialises the events portion of the library
-	 *
-	 * return {void}
-	 */
-	start () {
-        const container = this.elem,
-            tiles = [ ...container.querySelectorAll(`[data-mixer-movable="true"]`) ];
-
-		tiles.forEach(tile => {
-			tile.addEventListener("pointerdown", this._grab);
-		});
-
-		document.addEventListener("pointerup", this._letGo);
-	}
-	
-	/**
-	*
-	*/
-	move (moveCallback) {
-		this.moveCallback = moveCallback;
-	}
+    }
 }
