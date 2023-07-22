@@ -6,13 +6,13 @@ import MixerMechanics from "./extensions/MixerMechanics.js";
 * author: isaacastley@live.com
 */
 export default class MixerEvents extends MixerMechanics {
-    constructor ({ options, selector, container, track, items, meta }) {
+    constructor ({ options, selector, canvas, track, items, meta }) {
         super();
 
         // static
         this.options = options;
         this.selector = selector;
-        this.canvas = container;
+        this.canvas = canvas;
         this.track = track;
         this.items = items;
         this.meta = meta;
@@ -45,6 +45,7 @@ export default class MixerEvents extends MixerMechanics {
         this.grabbed = this.meta[this.id];
         this.grabbedX = x;
         this.grabbedY = y;
+        this.eventProps = { target : this.grabbed };
 
         document.addEventListener("pointermove", this.#move);
         document.addEventListener("pointerup", this.#release);
@@ -59,6 +60,9 @@ export default class MixerEvents extends MixerMechanics {
         let { x, y } = this.#translate(e);
 
         if (x > 0 || y > 0) this.moved = true;
+
+        // provide the move event to the public methods
+        this.#passMoveListener(x, y);
 
         this.grabbed.item.node.style.cssText = `
             transform: translate(${ x }px, ${ y }px);
@@ -124,5 +128,43 @@ export default class MixerEvents extends MixerMechanics {
             x :  bx,
             y :  by
         }
+    }
+
+    /**
+    * this method passes information back
+    * to the instantiated Mixer class if
+    * the event() method has been called
+    * and send back the movement data
+    *
+    * @param {int} x
+    * the mixer item's translated x position
+    *
+    * @param {int} y
+    * the mixer item's translated y position
+    *
+    * @return {void}
+    */
+    #passMoveListener (x, y) {
+        if (this.moveListen && this.moved) {
+            this.eventProps.x = x;
+            this.eventProps.y = y;
+            this.eventProps.type = "move";
+
+            this.moveListen(this.eventProps);
+        }
+    }
+
+    // -- public methods
+
+    /**
+    * sets a moveListen property so that
+    * the event() method provided to the 
+    * main Mixer class can return data 
+    * to the developer
+    *
+    * @return {void}
+    */
+    move (callback) {
+        this.moveListen = callback;
     }
 }

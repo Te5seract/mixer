@@ -29,19 +29,20 @@ export default class MixerMechanics {
     boundaries (x, y) {
         const { contained } = this.options;
 
-        if (!contained) return;
+        if (!contained) return { x : x, y : y };
 
-        const { item, canvas } = this.grabbed,
+        const { item, canvas, boundaries } = this.grabbed,
             { width, height, top, bottom } = item,
             { width : cWidth, height : cHeight, top : cTop, bottom : cBottom } = canvas,
-            xMax = cWidth - width,
-            xMin = 0,
-            yMin = -( top - cTop ),
-            yMax = cBottom - bottom;
+            xMax = item.boundaries.right,
+            xMin = item.boundaries.left,
+            yMin = item.boundaries.top,
+            yMax = item.boundaries.bottom;
 
         // x axis boundaries
-        x = x <= xMin ? 0 : x;
+        x = x <= xMin ? xMin : x;
         x = x >= xMax ? xMax : x;
+        //console.log(x, xMin);
 
         // y axis boundaries
         y = y <= yMin ? yMin : y;
