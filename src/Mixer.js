@@ -135,9 +135,16 @@ export default class Mixer {
         const node = item.getBoundingClientRect(),
             canvas = this.canvas.getBoundingClientRect(),
             { direction } = this.options,
-            { gap } = this.options,
             maxY = canvas.height - node.height,
-            maxX = canvas.width - node.width;
+            maxX = canvas.width - node.width,
+			top = canvas.top,
+			bottom = canvas.top + ( node.height ),
+			left = canvas.left,
+			right = canvas.left + ( node.width );
+
+		let { gap } = this.options;
+
+		gap = gap ? gap : 15;
 
         this.meta.push({
             x : 0,
@@ -155,10 +162,10 @@ export default class Mixer {
             },
             item : {
                 node : item,
-                left : node.left,
-                top : node.top,
-                bottom : node.bottom,
-                right : node.right,
+				top : index === 0 || direction !== "vertical" ? top : top + ( node.height + gap ) * index,
+				bottom : index === 0 || direction !== "vertical" ? bottom : bottom + ( node.height + gap ) * index,
+				left : index === 0 || direction !== "horizontal" ? left : left + ( node.width + gap ) * index,
+				right : index === 0 || direction !== "horizontal" ? right : right + ( node.width + gap ) * index,
                 width : node.width,
                 height : node.height,
                 boundaries : {
@@ -170,7 +177,7 @@ export default class Mixer {
             }
         });
 
-        console.log(this.meta);
+		console.log(this.meta);
     }
 
     // -- public methods
@@ -198,6 +205,14 @@ export default class Mixer {
         }
     }
 
+	/**
+	* gets the ID of a mixer item
+	*
+	* @param {HTMLElement} item
+	* A node within the mixer item
+	*
+	* @return {int}
+	*/
     getId (item) {
         const helper = new MixerHelpers(),
             mixrItem = helper.parents(item, "mixerRole:mixer-item"),
@@ -208,6 +223,14 @@ export default class Mixer {
         return Number(id);
     }
 
+	/**
+	* removes a mixer item and its node
+	*
+	* @param {int} id
+	* the id of the mixer item to remove
+	*
+	* @return {void}
+	*/
     remove (id) {
         const meta = this.meta[id];
 
@@ -219,42 +242,43 @@ export default class Mixer {
         this.items = [ ...this.track.children ];
     }
 
+	/**
+	* refreshes the mixer object in
+	* the event the mixer items have changed
+	*
+	* @return {void}
+	*/
     refresh () {
         const { direction } = this.options;
 
-        this.meta.forEach((item, i) => {
-            const node = item.item.node.getBoundingClientRect(),
-                canvas = this.canvas.getBoundingClientRect(),
-                top = canvas.top,
-                bottom = canvas.top + ( item.item.height ),
-                left = canvas.left,
-                right = canvas.left + ( item.item.width ),
-                maxY = canvas.height - item.item.height,
-                maxX = canvas.width - node.width;
+        //this.items = [ ...this.track.children ];
 
-            item.item.top = i === 0 || direction !== "vertical" ? top : top + ( item.item.height + item.gap ) * i;
-            item.item.bottom = i === 0 || direction !== "vertical" ? bottom : bottom + ( item.item.height + item.gap ) * i;
-            item.item.left = i === 0 || direction !== "horizontal" ? left : left + ( item.item.width + item.gap ) * i;
-            item.item.right = i === 0 || direction !== "horizontal" ? right : right + ( item.item.width + item.gap ) * i;
+		console.log(this.meta);
 
-            //console.log(item.item.right = i === 0 || direction !== "horizontal" ? right : right + ( item.item.width + item.gap ) * i);
+        //this.#setMeta();
 
-            console.log(item.item.boundaries.left);
+        //this.meta.forEach((item, i) => {
+            //const node = item.item.node.getBoundingClientRect(),
+                //canvas = this.canvas.getBoundingClientRect(),
+                //top = canvas.top,
+                //bottom = canvas.top + ( item.item.height ),
+                //left = canvas.left,
+                //right = canvas.left + ( item.item.width ),
+                //maxY = canvas.height - item.item.height,
+                //maxX = canvas.width - node.width;
 
-            item.item.boundaries = {
-                top : i === 0 || direction !== "vertical" ? 0 : -( ( item.item.height + item.gap ) * i ),
-                bottom : i === 0 || direction !== "vertical" ? maxY : maxY - ( item.item.height + item.gap ) * i,
-                left : i === 0 || direction !== "horizontal" ? 0 : -( ( node.width + item.gap ) * i ),
-                right : i === 0 || direction !== "horizontal" ? maxX : maxX - ( node.width + item.gap ) * i
-            }
+            //item.item.top = i === 0 || direction !== "vertical" ? top : top + ( item.item.height + item.gap ) * i;
+            //item.item.bottom = i === 0 || direction !== "vertical" ? bottom : bottom + ( item.item.height + item.gap ) * i;
+            //item.item.left = i === 0 || direction !== "horizontal" ? left : left + ( item.item.width + item.gap ) * i;
+            //item.item.right = i === 0 || direction !== "horizontal" ? right : right + ( item.item.width + item.gap ) * i;
 
-            //item.item.left = node.left;
-            //item.item.right = node.right;
-            //item.item.width = node.width;
-            //item.item.height = node.height;
-        });
-
-        console.log(this.meta);
+            //item.item.boundaries = {
+                //top : i === 0 || direction !== "vertical" ? 0 : -( ( item.item.height + item.gap ) * i ),
+                //bottom : i === 0 || direction !== "vertical" ? maxY : maxY - ( item.item.height + item.gap ) * i,
+                //left : i === 0 || direction !== "horizontal" ? 0 : -( ( node.width + item.gap ) * i ),
+                //right : i === 0 || direction !== "horizontal" ? maxX : maxX - ( node.width + item.gap ) * i
+            //}
+        //});
     }
 }
 
